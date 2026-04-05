@@ -21,14 +21,17 @@ export function useGeolocation(): GeolocationState {
   useEffect(() => {
     // 브라우저가 Geolocation을 지원하지 않는 경우
     if (!navigator.geolocation) {
-      setState({
-        lat: SEOUL_DEFAULT.lat,
-        lon: SEOUL_DEFAULT.lon,
-        loading: false,
-        error: '이 브라우저는 위치 서비스를 지원하지 않습니다.',
-        permission: 'denied',
-      });
-      return;
+      const timer = window.setTimeout(() => {
+        setState({
+          lat: SEOUL_DEFAULT.lat,
+          lon: SEOUL_DEFAULT.lon,
+          loading: false,
+          error: '이 브라우저는 위치 서비스를 지원하지 않습니다.',
+          permission: 'denied',
+        });
+      }, 0);
+
+      return () => window.clearTimeout(timer);
     }
 
     const onSuccess = (position: GeolocationPosition) => {
