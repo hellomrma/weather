@@ -8,6 +8,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { fetchCurrentWeather } from '@/lib/weather-api'
+import { resolveOWMLang } from '@/lib/i18n'
 
 export async function GET(request: NextRequest) {
   // Next.js 16: Route Handler에서 URL 파라미터는 request.url로 파싱한다.
@@ -16,6 +17,7 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const lat = url.searchParams.get('lat')
   const lon = url.searchParams.get('lon')
+  const lang = resolveOWMLang(url.searchParams.get('lang'))
 
   // 1. 파라미터 존재 검증
   if (!lat || !lon) {
@@ -51,7 +53,7 @@ export async function GET(request: NextRequest) {
 
   // 4. OpenWeatherMap API 호출
   try {
-    const data = await fetchCurrentWeather(latNum, lonNum)
+    const data = await fetchCurrentWeather(latNum, lonNum, lang)
     return NextResponse.json(data)
   } catch (err) {
     console.error('[GET /api/weather] Failed to fetch weather data:', err)

@@ -48,7 +48,8 @@ function getApiKey(): string {
  */
 export async function fetchCurrentWeather(
   lat: number,
-  lon: number
+  lon: number,
+  lang: string = 'kr'
 ): Promise<WeatherResponse> {
   'use cache'
   // 현재 날씨: 10분마다 재검증 (빠른 날씨 변화 반영)
@@ -57,7 +58,7 @@ export async function fetchCurrentWeather(
   const apiKey = getApiKey()
   const url =
     `${OWM_BASE_URL}/weather` +
-    `?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=kr`
+    `?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=${lang}`
 
   let res: Response
   try {
@@ -115,7 +116,8 @@ function mapCurrentWeather(raw: OWMCurrentWeatherResponse): WeatherResponse {
  */
 export async function fetchForecast(
   lat: number,
-  lon: number
+  lon: number,
+  lang: string = 'kr'
 ): Promise<ForecastResponse> {
   'use cache'
   // 5일 예보: 1시간마다 재검증 (일별 예보는 변화 빈도가 낮음)
@@ -124,7 +126,7 @@ export async function fetchForecast(
   const apiKey = getApiKey()
   const url =
     `${OWM_BASE_URL}/forecast` +
-    `?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=kr`
+    `?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=${lang}`
 
   let res: Response
   try {

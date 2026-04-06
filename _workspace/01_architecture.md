@@ -6,7 +6,7 @@
 - **설명**: 브라우저 Geolocation API로 현재 위치를 감지하여 실시간 날씨와 5일 예보를 제공하는 단일 페이지 웹앱
 - **타깃 사용자**: 빠르게 날씨를 확인하려는 일반 사용자 (모바일 우선)
 - **프로젝트 규모**: 소규모 (MVP)
-- **최종 업데이트**: 2026-04-05
+- **최종 업데이트**: 2026-04-06
 
 ---
 
@@ -22,6 +22,7 @@
 | FR-6 | 캔버스 배경 애니메이션 | 날씨 상태별 Canvas 기반 파티클 애니메이션 (비, 눈, 별, 안개 등) | P1 | ✅ 구현 완료 |
 | FR-7 | 데모 모드 | `?demo=true` 파라미터로 API 호출 없이 목업 데이터 미리보기 | P2 | ✅ 구현 완료 |
 | FR-8 | SEO / GEO / AEO | 검색엔진·AI 검색·음성검색 최적화 메타데이터 및 구조화 데이터 | P2 | ✅ 구현 완료 |
+| FR-9 | 다국어(i18n) | 브라우저 언어 자동 감지. 한국어·영어·일본어·중국어(간체)·스페인어 지원. OWM 날씨 설명도 현지어로 제공 | P2 | ✅ 구현 완료 |
 
 ## 비기능 요구사항
 
@@ -149,7 +150,9 @@ weather/
 │   └── lib/
 │       ├── weather-api.ts          — OpenWeatherMap API 호출 및 응답 변환 (server-only)
 │       ├── types.ts                — 공유 TypeScript 인터페이스 정의
-│       └── mock-data.ts            — 데모 모드용 목업 데이터
+│       ├── mock-data.ts            — 데모 모드용 목업 데이터
+│       ├── i18n.ts                 — 번역 테이블 + 로케일 감지 유틸리티 (공유)
+│       └── locale-context.tsx      — LocaleProvider + useLocale hook (클라이언트)
 ├── public/
 │   └── manifest.json               — PWA Web App Manifest
 ├── .env.local                      — 로컬 환경변수 (gitignore)

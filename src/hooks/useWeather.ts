@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { WeatherState, WeatherResponse, ForecastResponse } from '@/lib/types';
 
-export function useWeather(lat: number, lon: number): WeatherState {
+export function useWeather(lat: number, lon: number, lang: string = 'kr'): WeatherState {
   const [state, setState] = useState<WeatherState>({
     weather: null,
     forecast: null,
@@ -25,8 +25,8 @@ export function useWeather(lat: number, lon: number): WeatherState {
       try {
         // /api/weather와 /api/forecast를 병렬로 호출 (async-parallel 규칙)
         const [weatherRes, forecastRes] = await Promise.all([
-          fetch(`/api/weather?lat=${lat}&lon=${lon}`),
-          fetch(`/api/forecast?lat=${lat}&lon=${lon}`),
+          fetch(`/api/weather?lat=${lat}&lon=${lon}&lang=${lang}`),
+          fetch(`/api/forecast?lat=${lat}&lon=${lon}&lang=${lang}`),
         ]);
 
         if (!weatherRes.ok) {
@@ -63,7 +63,7 @@ export function useWeather(lat: number, lon: number): WeatherState {
     return () => {
       cancelled = true;
     };
-  }, [lat, lon]);
+  }, [lat, lon, lang]);
 
   return state;
 }

@@ -1,3 +1,4 @@
+import { useLocale } from '@/lib/locale-context';
 import type { LocationPermission } from '@/lib/types';
 
 interface LocationStatusProps {
@@ -7,6 +8,8 @@ interface LocationStatusProps {
 }
 
 export function LocationStatus({ permission, city, error }: LocationStatusProps) {
+  const { t } = useLocale();
+
   if (permission === 'loading') {
     return (
       <div
@@ -20,7 +23,7 @@ export function LocationStatus({ permission, city, error }: LocationStatusProps)
           className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
           aria-hidden="true"
         />
-        <span>위치 확인 중...</span>
+        <span>{t.locationLoading}</span>
       </div>
     );
   }
@@ -47,11 +50,9 @@ export function LocationStatus({ permission, city, error }: LocationStatusProps)
               clipRule="evenodd"
             />
           </svg>
-          <span>{error ?? '위치 권한이 거부되었습니다.'}</span>
+          <span>{error ?? t.locationDenied}</span>
         </div>
-        <p className="text-white/50 text-xs pl-6">
-          서울 날씨를 표시합니다. 정확한 위치 날씨를 보려면 브라우저 설정에서 위치 권한을 허용해주세요.
-        </p>
+        <p className="text-white/50 text-xs pl-6">{t.locationFallback}</p>
       </div>
     );
   }
@@ -76,7 +77,7 @@ export function LocationStatus({ permission, city, error }: LocationStatusProps)
             clipRule="evenodd"
           />
         </svg>
-        <span>현재 위치: {city}</span>
+        <span>{t.currentLocation}: {city}</span>
       </div>
     );
   }

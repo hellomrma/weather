@@ -1,3 +1,4 @@
+import { useLocale } from '@/lib/locale-context';
 import { WeatherIcon } from '@/components/WeatherIcon';
 import type { WeatherResponse } from '@/lib/types';
 
@@ -13,6 +14,7 @@ function getWindDirection(deg: number): string {
 }
 
 export function WeatherCard({ weather }: WeatherCardProps) {
+  const { t } = useLocale();
   const { location, current } = weather;
 
   return (
@@ -33,7 +35,7 @@ export function WeatherCard({ weather }: WeatherCardProps) {
         <div>
           <p
             className="text-8xl font-bold text-white drop-shadow-lg leading-none"
-            aria-label={`현재 온도 ${Math.round(current.temp)}도`}
+            aria-label={t.currentTempAriaLabel(Math.round(current.temp))}
           >
             {Math.round(current.temp)}
             <span className="text-4xl font-light align-top mt-2 inline-block">°C</span>
@@ -48,15 +50,15 @@ export function WeatherCard({ weather }: WeatherCardProps) {
       {/* 세부 정보 그리드 */}
       <dl className="grid grid-cols-3 gap-3">
         <div className="flex flex-col items-center rounded-2xl bg-white/10 dark:bg-black/10 p-3">
-          <dt className="text-xs text-white/60 mb-1">체감온도</dt>
+          <dt className="text-xs text-white/60 mb-1">{t.feelsLike}</dt>
           <dd className="text-lg font-semibold text-white">{Math.round(current.feelsLike)}°C</dd>
         </div>
         <div className="flex flex-col items-center rounded-2xl bg-white/10 dark:bg-black/10 p-3">
-          <dt className="text-xs text-white/60 mb-1">습도</dt>
+          <dt className="text-xs text-white/60 mb-1">{t.humidity}</dt>
           <dd className="text-lg font-semibold text-white">{current.humidity}%</dd>
         </div>
         <div className="flex flex-col items-center rounded-2xl bg-white/10 dark:bg-black/10 p-3">
-          <dt className="text-xs text-white/60 mb-1">풍속</dt>
+          <dt className="text-xs text-white/60 mb-1">{t.windSpeed}</dt>
           <dd className="text-lg font-semibold text-white">
             {current.windSpeed.toFixed(1)}
             <span className="text-xs font-normal ml-0.5">m/s</span>
