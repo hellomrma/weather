@@ -146,6 +146,7 @@ weather/
 ├── src/
 │   ├── app/
 │   │   ├── layout.tsx              — 루트 레이아웃 (SEO 메타데이터, JSON-LD, 폰트)
+│   │   ├── favicon.ico             — 파비콘 (16/32/48px, PWA 아이콘과 동일 디자인)
 │   │   ├── page.tsx                — 메인 페이지 (Client Component, 데모 모드 포함)
 │   │   ├── globals.css             — Tailwind v4 베이스 스타일
 │   │   ├── sitemap.ts              — /sitemap.xml 자동 생성

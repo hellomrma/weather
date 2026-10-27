@@ -125,7 +125,7 @@ vercel env rm OPENWEATHERMAP_API_KEY   # 삭제
 ## 5. PWA 아이콘 준비
 
 아래 아이콘 이미지가 모두 준비되어 있다 (2026-10-27, 해+구름 심볼). 디자인을 바꾸려면 같은 경로·크기로 교체한다.
-`favicon.ico`는 Next.js 기본 파일(`src/app/favicon.ico`)을 사용 중이다.
+`favicon.ico`는 같은 디자인으로 `src/app/favicon.ico`(Next.js 파일 컨벤션)에 있다.
 
 | 파일 경로 | 크기 | 용도 |
 |---------|------|------|
@@ -133,7 +133,7 @@ vercel env rm OPENWEATHERMAP_API_KEY   # 삭제
 | `public/icon-512.png` | 512×512px | Android 스플래시, PWA |
 | `public/apple-icon.png` | 180×180px | iOS 홈 화면 |
 | `public/og-image.png` | 1200×630px | OG/Twitter 카드 |
-| `public/favicon.ico` | 32×32px | 브라우저 탭 |
+| `src/app/favicon.ico` | 16/32/48px | 브라우저 탭 |
 
 ---
 
