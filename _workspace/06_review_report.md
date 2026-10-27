@@ -15,6 +15,7 @@
 | 2026-04-05 | 데모 모드 (`?demo=true`) 추가 |
 | 2026-04-05 | SEO / GEO / AEO 메타데이터, JSON-LD, PWA 추가 |
 | 2026-10-27 | 개선 리뷰 — FR-03~05 수정, REC-02~05 적용, 접근성/캔버스 개선, 시간별 예보·대기질 기능 추가 |
+| 2026-10-27 | PC 위치 부정확 대응 — 정확도 안내 + 도시 검색으로 위치 직접 선택 |
 
 ---
 
@@ -102,6 +103,13 @@
 - `viewport.maximumScale: 1` 제거 (확대 허용, WCAG 1.4.4).
 - `WeatherBackground`: `devicePixelRatio`(최대 2) 대응, `prefers-reduced-motion` 시 정적 프레임.
 - 백그라운드 탭 일시정지는 브라우저가 rAF를 자동 중단하므로 별도 구현하지 않음.
+
+#### [FEAT] ✅ 위치 정확도 안내 · 직접 선택 (2026-10-27)
+
+- **배경**: PC(성남)에서 화성시로 표시됨. OWM 역지오코딩은 정확했고(성남 좌표 → `Seongnam-si`), 브라우저가 IP 기반으로 추정한 좌표 자체가 약 30km 어긋난 것이 원인. PC에는 GPS가 없어 `enableHighAccuracy`로 해결 불가.
+- `useGeolocation`이 `accuracy`를 반환하고, 5km 초과 시 `LocationStatus`에 "대략적인 위치" 안내 표시.
+- "위치 변경" → `LocationSearch`(`/api/geocode`, OWM Direct Geocoding, 한글 지원)로 도시 선택 → `useSavedLocation`이 localStorage에 저장. 저장 위치가 있으면 위치 권한 요청 생략. "현재 위치 사용"으로 해제.
+- 위치 변경 후 새 데이터를 받는 동안 이전 화면을 흐리게 표시(`aria-busy`).
 
 #### [FEAT] ✅ 시간별 예보 · 대기질 추가 (2026-10-27)
 

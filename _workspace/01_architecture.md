@@ -24,6 +24,7 @@
 | FR-8 | SEO / GEO / AEO | 검색엔진·AI 검색·음성검색 최적화 메타데이터 및 구조화 데이터 | P2 | ✅ 구현 완료 |
 | FR-10 | 시간별 예보 | 향후 24시간(3시간 간격 8개) 기온·아이콘·강수 확률. `/api/forecast` 응답 재사용 | P1 | ✅ 구현 완료 |
 | FR-11 | 대기질 | OWM Air Pollution API로 AQI(1~5)·PM2.5·PM10 표시. 실패 시 카드만 숨김 | P1 | ✅ 구현 완료 |
+| FR-12 | 위치 정확도 안내 · 직접 선택 | 오차 5km 초과 시 "대략적인 위치" 안내. 도시 검색(OWM Geocoding)으로 위치를 직접 선택하면 localStorage에 저장하고 위치 권한 요청 생략 | P1 | ✅ 구현 완료 |
 | FR-9 | 다국어(i18n) | 브라우저 언어 자동 감지. 한국어·영어·일본어·중국어(간체)·스페인어 지원. OWM 날씨 설명도 현지어로 제공 | P2 | ✅ 구현 완료 |
 
 ## 비기능 요구사항
@@ -87,6 +88,7 @@ graph TD
         CO["lib/coords.ts (검증 + 반올림)"]
         WL["lib/weather-api.ts"]
         FC["lib/forecast.ts (집계)"]
+        GR["/api/geocode route.ts (도시 검색)"]
         ST["sitemap.ts"]
         RB["robots.ts"]
     end
@@ -156,14 +158,17 @@ weather/
 │   │       │   └── route.ts        — GET /api/weather?lat=&lon= (현재 날씨)
 │   │       ├── forecast/
 │   │       │   └── route.ts        — GET /api/forecast?lat=&lon= (5일 + 시간별 예보)
-│   │       └── air/
-│   │           └── route.ts        — GET /api/air?lat=&lon= (대기질)
+│   │       ├── air/
+│   │       │   └── route.ts        — GET /api/air?lat=&lon= (대기질)
+│   │       └── geocode/
+│   │           └── route.ts        — GET /api/geocode?q=&lang= (도시 검색)
 │   ├── components/
 │   │   ├── WeatherBackground.tsx   — Canvas 기반 날씨별 배경 애니메이션
 │   │   ├── WeatherCard.tsx         — 현재 날씨 카드 (온도, 체감온도, 습도, 풍속)
 │   │   ├── ForecastList.tsx        — 예보 목록 (5일 일별 카드)
 │   │   ├── HourlyForecast.tsx      — 시간별 예보 (24시간 가로 스크롤)
 │   │   ├── AirQualityCard.tsx      — 대기질 카드 (AQI, PM2.5, PM10)
+│   │   ├── LocationSearch.tsx      — 도시 검색 → 위치 선택 패널
 │   │   ├── HomePageClient.tsx      — 메인 화면 클라이언트 컴포넌트 (상태 조합, 에러/갱신 실패 안내)
 │   │   ├── WeatherIcon.tsx         — 날씨 아이콘 (OWM 아이콘 코드 → next/image)
 │   │   ├── LocationStatus.tsx      — 위치 상태 표시 (로딩 / 권한 거부 / 도시명)
@@ -171,11 +176,13 @@ weather/
 │   ├── hooks/
 │   │   ├── useGeolocation.ts       — Geolocation API 래퍼 hook
 │   │   ├── useWeather.ts           — 날씨/예보 데이터 fetch + 상태 관리 + refetch hook
-│   │   └── useAirQuality.ts        — 대기질 fetch hook (실패 시 null)
+│   │   ├── useAirQuality.ts        — 대기질 fetch hook (실패 시 null)
+│   │   └── useSavedLocation.ts     — 직접 선택한 위치 (localStorage, useSyncExternalStore)
 │   └── lib/
 │       ├── weather-api.ts          — OpenWeatherMap API 호출 및 응답 변환 (server-only)
 │       ├── coords.ts               — Route Handler 공용 lat/lon 검증 + 반올림
 │       ├── forecast.ts             — 예보 집계 순수 함수 (현지 시간대 기준)
+│       ├── geocode.ts              — 도시 검색 쿼리 검증 + OWM Geocoding 응답 변환
 │       ├── *.test.ts               — vitest 단위 테스트
 │       ├── types.ts                — 공유 TypeScript 인터페이스 정의
 │       ├── mock-data.ts            — 데모 모드용 목업 데이터

@@ -31,6 +31,7 @@ export interface GeolocationState {
   loading: boolean
   error: GeolocationErrorCode | null  // UI에서 t.geoErrors[code]로 번역
   permission: LocationPermission
+  accuracy: number | null  // 오차 반경(m). 5000 초과 시 "대략적인 위치" 안내
 }
 ```
 
@@ -73,6 +74,23 @@ export interface UseWeatherResult extends WeatherState {
 - `/api/weather`와 `/api/forecast`를 `Promise.all`로 병렬 호출한다.
 - `cancelled` 플래그로 언마운트 후 stale 상태 업데이트를 방지한다.
 - 에러 시 이전 `weather`/`forecast`를 유지한다. 데이터가 있으면 화면에 "갱신 실패" 안내 + 재시도 버튼, 없으면 `ErrorView`를 표시한다.
+
+### useSavedLocation — 직접 선택한 위치
+
+```typescript
+// src/hooks/useSavedLocation.ts
+// localStorage key: 'weather-now:location'
+// 값: JSON { name: string, country: string, lat: number, lon: number }
+function useSavedLocation(): {
+  location: GeocodeResult | null
+  save: (location: GeocodeResult) => void
+  clear: () => void   // "현재 위치 사용"
+}
+```
+
+- `useSyncExternalStore`로 읽는다 (서버 스냅샷 `null` → hydration 불일치 없음). 다른 탭 변경은 `storage` 이벤트로 반영.
+- 손상되었거나 형식이 다른 값은 `parseSavedLocation()`이 무시한다. 저장소 접근이 막힌 환경(시크릿 모드 등)에서도 예외 없이 동작한다.
+- 저장된 위치가 있으면 `useGeolocation(false)`로 위치 권한을 요청하지 않고 저장 좌표를 사용한다.
 
 ### useAirQuality — 대기질 상태
 

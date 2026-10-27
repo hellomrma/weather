@@ -64,6 +64,16 @@ export interface Translations {
   aqiLevels: Record<AQILevel, string>;
   pm25: string;
   pm10: string;
+  approxLocation: (km: number) => string;
+  changeLocation: string;
+  useCurrentLocation: string;
+  selectedLocation: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  search: string;
+  searchNoResults: string;
+  searchError: string;
+  cancel: string;
 }
 
 const translations: Record<Locale, Translations> = {
@@ -104,6 +114,16 @@ const translations: Record<Locale, Translations> = {
     aqiLevels: { 1: '좋음', 2: '양호', 3: '보통', 4: '나쁨', 5: '매우 나쁨' },
     pm25: '초미세먼지',
     pm10: '미세먼지',
+    approxLocation: (km) => `대략적인 위치예요 (오차 약 ${km}km). 정확하지 않다면 위치를 직접 선택하세요.`,
+    changeLocation: '위치 변경',
+    useCurrentLocation: '현재 위치 사용',
+    selectedLocation: '선택한 위치',
+    searchLabel: '도시 검색',
+    searchPlaceholder: '도시 이름 (예: 성남)',
+    search: '검색',
+    searchNoResults: '검색 결과가 없습니다.',
+    searchError: '검색 중 오류가 발생했습니다.',
+    cancel: '취소',
   },
 
   en: {
@@ -143,6 +163,16 @@ const translations: Record<Locale, Translations> = {
     aqiLevels: { 1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor' },
     pm25: 'PM2.5',
     pm10: 'PM10',
+    approxLocation: (km) => `Approximate location (±${km} km). If this is wrong, choose your location.`,
+    changeLocation: 'Change location',
+    useCurrentLocation: 'Use current location',
+    selectedLocation: 'Selected location',
+    searchLabel: 'Search city',
+    searchPlaceholder: 'City name (e.g. London)',
+    search: 'Search',
+    searchNoResults: 'No results found.',
+    searchError: 'An error occurred while searching.',
+    cancel: 'Cancel',
   },
 
   ja: {
@@ -182,6 +212,16 @@ const translations: Record<Locale, Translations> = {
     aqiLevels: { 1: '良い', 2: 'やや良い', 3: '普通', 4: '悪い', 5: '非常に悪い' },
     pm25: 'PM2.5',
     pm10: 'PM10',
+    approxLocation: (km) => `おおよその位置です（誤差 約${km}km）。正しくない場合は位置を選択してください。`,
+    changeLocation: '位置を変更',
+    useCurrentLocation: '現在地を使用',
+    selectedLocation: '選択した位置',
+    searchLabel: '都市を検索',
+    searchPlaceholder: '都市名（例: 東京）',
+    search: '検索',
+    searchNoResults: '検索結果がありません。',
+    searchError: '検索中にエラーが発生しました。',
+    cancel: 'キャンセル',
   },
 
   'zh-CN': {
@@ -221,6 +261,16 @@ const translations: Record<Locale, Translations> = {
     aqiLevels: { 1: '优', 2: '良', 3: '中等', 4: '差', 5: '很差' },
     pm25: 'PM2.5',
     pm10: 'PM10',
+    approxLocation: (km) => `大致位置（误差约 ${km} 公里）。如不准确，请手动选择位置。`,
+    changeLocation: '更改位置',
+    useCurrentLocation: '使用当前位置',
+    selectedLocation: '已选位置',
+    searchLabel: '搜索城市',
+    searchPlaceholder: '城市名称（例如：北京）',
+    search: '搜索',
+    searchNoResults: '没有搜索结果。',
+    searchError: '搜索时发生错误。',
+    cancel: '取消',
   },
 
   es: {
@@ -261,6 +311,16 @@ const translations: Record<Locale, Translations> = {
     aqiLevels: { 1: 'Buena', 2: 'Aceptable', 3: 'Moderada', 4: 'Mala', 5: 'Muy mala' },
     pm25: 'PM2.5',
     pm10: 'PM10',
+    approxLocation: (km) => `Ubicación aproximada (±${km} km). Si no es correcta, elige tu ubicación.`,
+    changeLocation: 'Cambiar ubicación',
+    useCurrentLocation: 'Usar ubicación actual',
+    selectedLocation: 'Ubicación seleccionada',
+    searchLabel: 'Buscar ciudad',
+    searchPlaceholder: 'Nombre de la ciudad (p. ej., Madrid)',
+    search: 'Buscar',
+    searchNoResults: 'No se encontraron resultados.',
+    searchError: 'Se produjo un error al buscar.',
+    cancel: 'Cancelar',
   },
 };
 

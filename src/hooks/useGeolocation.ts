@@ -9,16 +9,24 @@ const SEOUL_DEFAULT = {
   lon: 126.978,
 };
 
-export function useGeolocation(): GeolocationState {
+/**
+ * @param enabled false이면 위치를 요청하지 않는다 (사용자가 위치를 직접 선택한 경우 권한 요청 생략)
+ */
+export function useGeolocation(enabled: boolean = true): GeolocationState {
   const [state, setState] = useState<GeolocationState>({
     lat: SEOUL_DEFAULT.lat,
     lon: SEOUL_DEFAULT.lon,
     loading: true,
     error: null,
     permission: 'loading',
+    accuracy: null,
   });
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     // 브라우저가 Geolocation을 지원하지 않는 경우
     if (!navigator.geolocation) {
       const timer = window.setTimeout(() => {
@@ -28,6 +36,7 @@ export function useGeolocation(): GeolocationState {
           loading: false,
           error: 'unsupported',
           permission: 'denied',
+          accuracy: null,
         });
       }, 0);
 
@@ -41,6 +50,7 @@ export function useGeolocation(): GeolocationState {
         loading: false,
         error: null,
         permission: 'granted',
+        accuracy: position.coords.accuracy,
       });
     };
 
@@ -74,6 +84,7 @@ export function useGeolocation(): GeolocationState {
         loading: false,
         error: errorCode,
         permission,
+        accuracy: null,
       });
     };
 
@@ -82,7 +93,7 @@ export function useGeolocation(): GeolocationState {
       timeout: 10000,
       maximumAge: 300000, // 5분 캐시
     });
-  }, []);
+  }, [enabled]);
 
   return state;
 }

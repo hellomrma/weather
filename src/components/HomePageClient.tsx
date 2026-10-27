@@ -5,11 +5,13 @@ import { useSearchParams } from 'next/navigation';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useWeather } from '@/hooks/useWeather';
 import { useAirQuality } from '@/hooks/useAirQuality';
+import { useSavedLocation } from '@/hooks/useSavedLocation';
 import { WeatherCard } from '@/components/WeatherCard';
 import { ForecastList } from '@/components/ForecastList';
 import { HourlyForecast } from '@/components/HourlyForecast';
 import { AirQualityCard } from '@/components/AirQualityCard';
 import { LocationStatus } from '@/components/LocationStatus';
+import { LocationSearch } from '@/components/LocationSearch';
 import { MOCK_WEATHER, MOCK_FORECAST, MOCK_AIR } from '@/lib/mock-data';
 import { WeatherBackground } from '@/components/WeatherBackground';
 import { LocaleProvider, useLocale } from '@/lib/locale-context';
@@ -124,7 +126,13 @@ function StaleDataNotice({ onRetry }: { onRetry: () => void }) {
 function HomePageContent() {
   const searchParams = useSearchParams();
   const isDemo = searchParams.get('demo') === 'true';
-  const { lat, lon, loading: geoLoading, error: geoError, permission } = useGeolocation();
+  const { location: savedLocation, save: saveLocation, clear: clearLocation } = useSavedLocation();
+  // 직접 선택한 위치가 있으면 위치 권한을 요청하지 않는다
+  const geo = useGeolocation(!savedLocation);
+  const lat = savedLocation?.lat ?? geo.lat;
+  const lon = savedLocation?.lon ?? geo.lon;
+  const geoLoading = savedLocation ? false : geo.loading;
+  const [searchOpen, setSearchOpen] = useState(false);
   const { t, dateLocale, owmLang, ready: localeReady } = useLocale();
   // 위치·로케일이 확정되기 전에는 호출하지 않는다 (서울 기본값/ko로 먼저 요청 후 재요청하는 중복 방지)
   const shouldFetch = !isDemo && !geoLoading && localeReady;
@@ -139,6 +147,8 @@ function HomePageContent() {
 
   // 전체 로딩: 위치 로딩 또는 (표시할 데이터가 없는 상태에서) 날씨 데이터 로딩 중
   const isLoading = isDemo ? false : (geoLoading || (realWeatherState.loading && !weather));
+  // 이미 표시 중인 데이터가 있는 상태에서 새로 불러오는 중 (위치 변경 · 재시도)
+  const isRefreshing = !isDemo && realWeatherState.loading && weather !== null;
 
   // 재시도: 위치 재요청 없이 API만 다시 호출
   const handleRetry = realWeatherState.refetch;
@@ -174,15 +184,33 @@ function HomePageContent() {
 
         {/* 위치 상태 */}
         <div className="w-full max-w-md mb-4">
-          <LocationStatus
-            permission={isDemo ? 'granted' : (geoLoading ? 'loading' : permission)}
-            city={weather?.location.city}
-            error={isDemo ? null : geoError}
-          />
+          {searchOpen ? (
+            <LocationSearch
+              onSelect={(location) => {
+                saveLocation(location);
+                setSearchOpen(false);
+              }}
+              onCancel={() => setSearchOpen(false)}
+            />
+          ) : (
+            <LocationStatus
+              permission={isDemo ? 'granted' : (geoLoading ? 'loading' : geo.permission)}
+              city={weather?.location.city}
+              error={isDemo || savedLocation ? null : geo.error}
+              accuracy={isDemo ? null : geo.accuracy}
+              selectedName={isDemo ? null : savedLocation?.name}
+              onChangeLocation={isDemo ? undefined : () => setSearchOpen(true)}
+              onUseCurrentLocation={clearLocation}
+            />
+          )}
         </div>
 
         {/* 본문 */}
-        <main className="w-full max-w-md flex flex-col gap-4 animate-fade-in">
+        {/* 위치 변경 후 새 데이터를 받는 동안 이전 화면을 흐리게 표시 */}
+        <main
+          className={`w-full max-w-md flex flex-col gap-4 animate-fade-in transition-opacity ${isRefreshing ? 'opacity-60' : ''}`}
+          aria-busy={isRefreshing}
+        >
           {isLoading ? (
             <WeatherSkeleton />
           ) : weather && forecast ? (

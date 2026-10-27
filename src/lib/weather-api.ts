@@ -12,13 +12,18 @@ import type {
   WeatherResponse,
   ForecastResponse,
   AirQualityResponse,
+  GeocodeResult,
   OWMCurrentWeatherResponse,
   OWMForecastResponse,
   OWMAirPollutionResponse,
+  OWMGeocodeItem,
 } from '@/lib/types'
+import type { OWMLang } from '@/lib/i18n'
 import { aggregateForecast, buildHourly } from '@/lib/forecast'
+import { mapGeocodeItem } from '@/lib/geocode'
 
 const OWM_BASE_URL = 'https://api.openweathermap.org/data/2.5'
+const OWM_GEO_URL = 'https://api.openweathermap.org/geo/1.0'
 
 /**
  * API 키를 런타임에 검증하여 반환한다.
@@ -199,4 +204,47 @@ export async function fetchAirQuality(
     pm25: Math.round(entry.components.pm2_5),
     pm10: Math.round(entry.components.pm10),
   }
+}
+
+// =============================================================================
+// 도시 검색
+// =============================================================================
+
+/**
+ * OpenWeatherMap Direct Geocoding API로 도시 이름을 검색한다 (최대 5건).
+ *
+ * @param query 검색어 (한글 지원, 예: "성남")
+ * @param lang  결과 이름을 표시할 언어
+ */
+export async function searchLocations(
+  query: string,
+  lang: OWMLang
+): Promise<GeocodeResult[]> {
+  'use cache'
+  // 지명 좌표는 사실상 변하지 않으므로 하루 단위로 재검증
+  cacheLife({ stale: 3600, revalidate: 86400, expire: 604800 })
+
+  const apiKey = getApiKey()
+  const url =
+    `${OWM_GEO_URL}/direct` +
+    `?q=${encodeURIComponent(query)}&limit=5&appid=${apiKey}`
+
+  let res: Response
+  try {
+    res = await fetch(url)
+  } catch (err) {
+    console.error('[weather-api] Network error calling OWM /geo/direct:', err)
+    throw new Error('Failed to search locations: network error')
+  }
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    console.error(
+      `[weather-api] OWM /geo/direct responded ${res.status}: ${body}`
+    )
+    throw new Error(`Failed to search locations: OWM returned ${res.status}`)
+  }
+
+  const raw: OWMGeocodeItem[] = await res.json()
+  return raw.map((item) => mapGeocodeItem(item, lang))
 }

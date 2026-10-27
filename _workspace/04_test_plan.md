@@ -243,7 +243,7 @@
 ### Vitest 설정 (`vitest.config.ts`)
 
 > **현재 적용 상태 (2026-10-27)**: `vitest@4` + node 환경 최소 구성(`@` alias, `src/**/*.test.ts`)만 적용되어 있다. 실행: `npm test`.
-> 작성된 테스트: `src/lib/forecast.test.ts`(현지 시간대 집계·정오 대표값·pop·hourly), `src/lib/coords.test.ts`(검증 4종 + 반올림).
+> 작성된 테스트: `src/lib/geocode.test.ts`(검색어 검증·현지어 이름·저장 위치 파싱), `src/lib/forecast.test.ts`(현지 시간대 집계·정오 대표값·pop·hourly), `src/lib/coords.test.ts`(검증 4종 + 반올림).
 > 아래는 컴포넌트 테스트까지 확장할 때의 목표 구성이다 (`jsdom`, `@vitejs/plugin-react`, Testing Library 추가 필요).
 
 ```typescript

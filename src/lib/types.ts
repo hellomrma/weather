@@ -51,6 +51,15 @@ export interface AirQualityResponse {
   pm10: number; // 미세먼지 PM10 (μg/m³)
 }
 
+// 도시 검색 결과 (/api/geocode) — 사용자가 선택하면 localStorage에 저장된다
+export interface GeocodeResult {
+  name: string;    // 현지어 이름 (없으면 OWM 기본 이름)
+  country: string; // 국가 코드 (예: "KR")
+  state?: string;  // 주/도 (있는 경우)
+  lat: number;
+  lon: number;
+}
+
 // =============================================================================
 // Client State Types (React hook 상태 타입)
 // =============================================================================
@@ -71,6 +80,7 @@ export interface GeolocationState {
   loading: boolean;
   error: GeolocationErrorCode | null;
   permission: LocationPermission;
+  accuracy: number | null; // 위치 오차 반경 (m). PC는 IP 기반 추정이라 수 km 이상일 수 있음
 }
 
 export interface WeatherState {
@@ -137,6 +147,15 @@ export interface OWMAirPollutionResponse {
       pm10: number;
     };
   }[];
+}
+
+export interface OWMGeocodeItem {
+  name: string;
+  local_names?: Record<string, string>;
+  lat: number;
+  lon: number;
+  country: string;
+  state?: string;
 }
 
 export interface OWMForecastResponse {

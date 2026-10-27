@@ -20,6 +20,7 @@
 | GET | `/api/weather` | 현재 날씨 조회 | 10분 (stale 5분) | 200 WeatherResponse |
 | GET | `/api/forecast` | 5일 예보 + 24시간 시간별 예보 조회 | 1시간 (stale 30분) | 200 ForecastResponse |
 | GET | `/api/air` | 현재 대기질 조회 | 30분 (stale 10분) | 200 AirQualityResponse |
+| GET | `/api/geocode` | 도시 이름 검색 (위치 직접 선택) | 1일 (stale 1시간) | 200 GeocodeResult[] |
 
 > **좌표 반올림**: 모든 엔드포인트는 검증 후 `lat`/`lon`을 소수 2자리(약 1km)로 반올림하여 OWM을 호출한다. `'use cache'` 캐시 키가 좌표 단위이므로, 근접한 사용자 간 캐시를 공유해 OWM 호출 한도(무료 60회/분) 소진을 줄인다.
 
@@ -212,6 +213,46 @@ interface AirQualityResponse {
 #### 에러 응답
 
 `/api/weather`와 동일한 400 케이스 + `500 { "error": "Failed to fetch air quality data" }`
+
+---
+
+### [GET] /api/geocode
+
+도시 이름으로 위치를 검색한다 (최대 5건). OpenWeatherMap Direct Geocoding API(`/geo/1.0/direct`, 무료)를 내부 호출한다.
+PC처럼 브라우저 위치가 IP 기반으로 부정확한 경우 사용자가 위치를 직접 고르는 데 사용한다. 한글 검색어를 지원한다 (예: `성남` → `성남시`).
+
+#### 쿼리 파라미터
+
+| 파라미터 | 타입 | 필수 | 제약 | 예시 |
+|---------|------|------|------|------|
+| `q` | `string` | 필수 | 공백 제거 후 1~100자 | `성남` |
+| `lang` | `string` | 선택 | `kr`·`en`·`ja`·`zh_cn`·`es` (기본 `kr`) | `kr` |
+
+#### 응답 타입
+
+```typescript
+interface GeocodeResult {
+  name: string     // lang에 맞는 현지어 이름 (local_names), 없으면 OWM 기본 이름
+  country: string  // 국가 코드
+  state?: string   // 주/도 (있는 경우)
+  lat: number
+  lon: number
+}
+```
+
+#### 응답 예시 (200 OK)
+
+```json
+[{ "name": "성남시", "country": "KR", "lat": 37.4201556, "lon": 127.1262092 }]
+```
+
+#### 에러 응답
+
+| HTTP 상태 | 원인 | 응답 본문 |
+|----------|------|---------|
+| 400 | `q` 누락 또는 공백 | `{ "error": "q query parameter is required" }` |
+| 400 | `q` 100자 초과 | `{ "error": "q must be at most 100 characters" }` |
+| 500 | OWM API 오류 | `{ "error": "Failed to search locations" }` |
 
 ---
 
