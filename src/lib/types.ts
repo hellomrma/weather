@@ -28,8 +28,27 @@ export interface ForecastDay {
   pop: number;         // 최대 강수 확률 (0.0 ~ 1.0)
 }
 
+export interface ForecastHour {
+  dt: number;          // UTC 타임스탬프 (초)
+  hour: number;        // 현지 시각 (0-23)
+  temp: number;        // 기온 (섭씨)
+  description: string; // 날씨 설명
+  icon: string;        // OWM 아이콘 코드
+  pop: number;         // 강수 확률 (0.0 ~ 1.0)
+}
+
 export interface ForecastResponse {
-  daily: ForecastDay[]; // 최대 5개 항목
+  daily: ForecastDay[];   // 최대 5개 항목
+  hourly: ForecastHour[]; // 향후 24시간 (3시간 간격 8개)
+}
+
+// OWM 대기질 지수 — 1: 좋음 ~ 5: 매우 나쁨 (유럽 CAQI 기반, 국내 환경부 기준과 다름)
+export type AQILevel = 1 | 2 | 3 | 4 | 5;
+
+export interface AirQualityResponse {
+  aqi: AQILevel;
+  pm25: number; // 초미세먼지 PM2.5 (μg/m³)
+  pm10: number; // 미세먼지 PM10 (μg/m³)
 }
 
 // =============================================================================
@@ -41,11 +60,16 @@ export type LocationPermission = 'prompt' | 'granted' | 'denied' | 'loading';
 
 export type GeolocationStatus = 'idle' | 'loading' | 'granted' | 'denied' | 'error';
 
+// 에러는 코드로 전달하고 UI에서 번역한다 (i18n 일관성)
+export type GeolocationErrorCode = 'unsupported' | 'denied' | 'unavailable' | 'timeout' | 'unknown';
+
+export type WeatherErrorCode = 'weather' | 'forecast' | 'network';
+
 export interface GeolocationState {
   lat: number;
   lon: number;
   loading: boolean;
-  error: string | null;
+  error: GeolocationErrorCode | null;
   permission: LocationPermission;
 }
 
@@ -53,7 +77,7 @@ export interface WeatherState {
   weather: WeatherResponse | null;
   forecast: ForecastResponse | null;
   loading: boolean;
-  error: string | null;
+  error: WeatherErrorCode | null;
 }
 
 // =============================================================================
@@ -104,10 +128,22 @@ export interface OWMForecastItem {
   pop: number; // 강수 확률 (0.0 ~ 1.0)
 }
 
+export interface OWMAirPollutionResponse {
+  list: {
+    dt: number;
+    main: { aqi: AQILevel };
+    components: {
+      pm2_5: number;
+      pm10: number;
+    };
+  }[];
+}
+
 export interface OWMForecastResponse {
   list: OWMForecastItem[];
   city: {
     name: string;
     country: string;
+    timezone: number; // UTC 기준 오프셋 (초, 예: KST = 32400)
   };
 }

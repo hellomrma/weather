@@ -96,6 +96,7 @@ npm run dev      # 개발 서버 (http://localhost:3000)
 npm run build    # 프로덕션 빌드
 npm run start    # 프로덕션 서버
 npm run lint     # ESLint 검사
+npm test         # Vitest 단위 테스트
 ```
 
 데모 모드(API 키 없이 UI 확인):

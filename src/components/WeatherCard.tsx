@@ -43,7 +43,7 @@ export function WeatherCard({ weather }: WeatherCardProps) {
           <p className="mt-2 text-white/80 text-base capitalize">{current.description}</p>
         </div>
         <div className="shrink-0" aria-hidden="true">
-          <WeatherIcon icon={current.icon} description={current.description} size={96} />
+          <WeatherIcon icon={current.icon} description={current.description} size={96} priority />
         </div>
       </div>
 

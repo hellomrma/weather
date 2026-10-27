@@ -6,7 +6,7 @@
 - **설명**: 브라우저 Geolocation API로 현재 위치를 감지하여 실시간 날씨와 5일 예보를 제공하는 단일 페이지 웹앱
 - **타깃 사용자**: 빠르게 날씨를 확인하려는 일반 사용자 (모바일 우선)
 - **프로젝트 규모**: 소규모 (MVP)
-- **최종 업데이트**: 2026-04-06
+- **최종 업데이트**: 2026-10-27
 
 ---
 
@@ -22,6 +22,8 @@
 | FR-6 | 캔버스 배경 애니메이션 | 날씨 상태별 Canvas 기반 파티클 애니메이션 (비, 눈, 별, 안개 등) | P1 | ✅ 구현 완료 |
 | FR-7 | 데모 모드 | `?demo=true` 파라미터로 API 호출 없이 목업 데이터 미리보기 | P2 | ✅ 구현 완료 |
 | FR-8 | SEO / GEO / AEO | 검색엔진·AI 검색·음성검색 최적화 메타데이터 및 구조화 데이터 | P2 | ✅ 구현 완료 |
+| FR-10 | 시간별 예보 | 향후 24시간(3시간 간격 8개) 기온·아이콘·강수 확률. `/api/forecast` 응답 재사용 | P1 | ✅ 구현 완료 |
+| FR-11 | 대기질 | OWM Air Pollution API로 AQI(1~5)·PM2.5·PM10 표시. 실패 시 카드만 숨김 | P1 | ✅ 구현 완료 |
 | FR-9 | 다국어(i18n) | 브라우저 언어 자동 감지. 한국어·영어·일본어·중국어(간체)·스페인어 지원. OWM 날씨 설명도 현지어로 제공 | P2 | ✅ 구현 완료 |
 
 ## 비기능 요구사항
@@ -68,6 +70,9 @@ graph TD
         BG["WeatherBackground (Canvas 애니메이션)"]
         WC["WeatherCard"]
         FL["ForecastList"]
+        HF["HourlyForecast"]
+        AQ["AirQualityCard"]
+        UA["useAirQuality hook"]
         LS["LocationStatus"]
         JL["JsonLd (구조화 데이터)"]
         UG["useGeolocation hook"]
@@ -78,7 +83,10 @@ graph TD
     subgraph NextServer["Next.js 서버 (Route Handlers)"]
         WR["/api/weather route.ts"]
         FR["/api/forecast route.ts"]
+        AR["/api/air route.ts"]
+        CO["lib/coords.ts (검증 + 반올림)"]
         WL["lib/weather-api.ts"]
+        FC["lib/forecast.ts (집계)"]
         ST["sitemap.ts"]
         RB["robots.ts"]
     end
@@ -92,8 +100,15 @@ graph TD
     PAGE -->|?demo=true| MD
     UW -->|GET /api/weather| WR
     UW -->|GET /api/forecast| FR
+    UG -->|좌표| UA
+    UA -->|GET /api/air| AR
+    WR --> CO
+    FR --> CO
+    AR --> CO
     WR --> WL
     FR --> WL
+    AR --> WL
+    WL --> FC
     WL -->|OPENWEATHERMAP_API_KEY| OWM
     OWM -->|JSON 응답| WL
     WL -->|정제된 데이터| WR
@@ -104,6 +119,9 @@ graph TD
     PAGE --> BG
     PAGE --> WC
     PAGE --> FL
+    PAGE --> HF
+    PAGE --> AQ
+    UA -->|대기질| PAGE
     PAGE --> LS
     JL -.->|head script| PAGE
 ```
@@ -114,9 +132,9 @@ graph TD
 2. 브라우저 로드 시 `useGeolocation`이 `navigator.geolocation.getCurrentPosition()`을 호출한다.
 3. 위치 획득 성공 시 실제 좌표를, 실패 시 서울 기본값(37.5665, 126.9780)을 반환한다.
 4. `?demo=true` 파라미터가 있으면 `mock-data.ts`의 목업 데이터를 사용하고 API를 호출하지 않는다.
-5. `useWeather`가 좌표를 받아 `/api/weather`와 `/api/forecast`를 `Promise.all`로 병렬 호출한다.
-6. Next.js Route Handler가 `OPENWEATHERMAP_API_KEY`로 OWM API를 호출한다. 키는 서버에만 존재한다.
-7. `weather-api.ts`가 OWM 응답을 앱 타입으로 변환하여 반환한다.
+5. 위치와 로케일(`LocaleProvider.ready`)이 모두 확정된 뒤 `useWeather`가 `/api/weather`와 `/api/forecast`를 `Promise.all`로 병렬 호출하고, `useAirQuality`가 `/api/air`를 독립 호출한다. (확정 전 호출하면 서울 기본값·`ko`로 한 번 요청 후 재요청하는 중복이 생긴다.)
+6. Route Handler가 `coords.ts`로 좌표를 검증하고 소수 2자리로 반올림한 뒤(캐시 공유), `OPENWEATHERMAP_API_KEY`로 OWM API를 호출한다. 키는 서버에만 존재한다.
+7. `weather-api.ts`가 OWM 응답을 앱 타입으로 변환하여 반환한다. 예보 집계는 `forecast.ts`가 `city.timezone` 기준 현지 날짜로 수행한다.
 8. `page.tsx`가 날씨 상태에 따라 `WeatherBackground`(Canvas 애니메이션)를 렌더링하고, 데이터를 각 컴포넌트로 전달한다.
 
 ---
@@ -135,32 +153,45 @@ weather/
 │   │   └── api/
 │   │       ├── weather/
 │   │       │   └── route.ts        — GET /api/weather?lat=&lon= (현재 날씨)
-│   │       └── forecast/
-│   │           └── route.ts        — GET /api/forecast?lat=&lon= (5일 예보)
+│   │       ├── forecast/
+│   │       │   └── route.ts        — GET /api/forecast?lat=&lon= (5일 + 시간별 예보)
+│   │       └── air/
+│   │           └── route.ts        — GET /api/air?lat=&lon= (대기질)
 │   ├── components/
 │   │   ├── WeatherBackground.tsx   — Canvas 기반 날씨별 배경 애니메이션
 │   │   ├── WeatherCard.tsx         — 현재 날씨 카드 (온도, 체감온도, 습도, 풍속)
 │   │   ├── ForecastList.tsx        — 예보 목록 (5일 일별 카드)
+│   │   ├── HourlyForecast.tsx      — 시간별 예보 (24시간 가로 스크롤)
+│   │   ├── AirQualityCard.tsx      — 대기질 카드 (AQI, PM2.5, PM10)
+│   │   ├── HomePageClient.tsx      — 메인 화면 클라이언트 컴포넌트 (상태 조합, 에러/갱신 실패 안내)
 │   │   ├── WeatherIcon.tsx         — 날씨 아이콘 (OWM 아이콘 코드 → next/image)
 │   │   ├── LocationStatus.tsx      — 위치 상태 표시 (로딩 / 권한 거부 / 도시명)
 │   │   └── JsonLd.tsx              — JSON-LD 구조화 데이터 (WebApp, FAQ, Speakable)
 │   ├── hooks/
 │   │   ├── useGeolocation.ts       — Geolocation API 래퍼 hook
-│   │   └── useWeather.ts           — 날씨/예보 데이터 fetch + 상태 관리 hook
+│   │   ├── useWeather.ts           — 날씨/예보 데이터 fetch + 상태 관리 + refetch hook
+│   │   └── useAirQuality.ts        — 대기질 fetch hook (실패 시 null)
 │   └── lib/
 │       ├── weather-api.ts          — OpenWeatherMap API 호출 및 응답 변환 (server-only)
+│       ├── coords.ts               — Route Handler 공용 lat/lon 검증 + 반올림
+│       ├── forecast.ts             — 예보 집계 순수 함수 (현지 시간대 기준)
+│       ├── *.test.ts               — vitest 단위 테스트
 │       ├── types.ts                — 공유 TypeScript 인터페이스 정의
 │       ├── mock-data.ts            — 데모 모드용 목업 데이터
 │       ├── i18n.ts                 — 번역 테이블 + 로케일 감지 유틸리티 (공유)
 │       └── locale-context.tsx      — LocaleProvider + useLocale hook (클라이언트)
 ├── public/
-│   └── manifest.json               — PWA Web App Manifest
+│   ├── manifest.json               — PWA Web App Manifest
+│   ├── icon-192.png / icon-512.png — PWA 아이콘 (maskable)
+│   ├── apple-icon.png              — iOS 홈 화면 아이콘 (180×180)
+│   └── og-image.png                — Open Graph 이미지 (1200×630)
 ├── .env.local                      — 로컬 환경변수 (gitignore)
 ├── .env.local.example              — 환경변수 템플릿 (커밋됨)
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml              — GitHub Actions CI/CD
 ├── next.config.ts                  — Next.js 설정 (OWM 이미지 도메인 허용)
+├── vitest.config.ts                — 단위 테스트 설정 (`npm test`)
 └── tsconfig.json
 ```
 
@@ -179,6 +210,9 @@ weather/
 | `Mist` / `Fog` / `Haze` | 회색-베이지 | 천천히 이동하는 반투명 안개 블롭 |
 
 낮/밤 구분은 OWM 아이콘 코드의 `n` 접미사로 판별한다 (`"01n"` → 밤).
+
+- `devicePixelRatio`(최대 2) 배율로 렌더링하여 레티나 화면에서 선명하게 표시한다.
+- `prefers-reduced-motion: reduce` 사용자에게는 애니메이션 없이 정적 프레임 1장만 그린다.
 
 ---
 
@@ -202,7 +236,7 @@ weather/
 API 키 미발급 또는 활성화 대기 시 목업 데이터로 UI를 미리 확인할 수 있다.
 
 - URL: `http://localhost:3000/?demo=true`
-- `mock-data.ts`의 `MOCK_WEATHER`, `MOCK_FORECAST` 상수를 사용
+- `mock-data.ts`의 `MOCK_WEATHER`, `MOCK_FORECAST`, `MOCK_AIR` 상수를 사용
 - API 호출 없음 (`useWeather`에 `NaN` 좌표 전달하여 fetch 차단)
 - 상단에 노란 배너로 데모 모드임을 표시
 
@@ -217,10 +251,10 @@ API 키 미발급 또는 활성화 대기 시 목업 데이터로 UI를 미리 �
 
 ### 백엔드
 - API 키 보호: `import 'server-only'`가 `weather-api.ts` 최상단에 선언되어 있다.
-- `cacheLife` 디렉티브: 현재 날씨 10분, 예보 1시간 캐시.
-- 파라미터 검증: 존재 여부 → 숫자 형식 → 범위(-90~90, -180~180) 3단계.
+- `cacheLife` 디렉티브: 현재 날씨 10분, 예보 1시간, 대기질 30분 캐시.
+- 파라미터 검증: `coords.ts` `parseCoords()` — 존재 여부 → 숫자 형식 → 범위(-90~90, -180~180) → 소수 2자리 반올림.
 
 ### DevOps
 - 환경변수: `OPENWEATHERMAP_API_KEY` (필수), `NEXT_PUBLIC_BASE_URL` (SEO 메타데이터용, 선택).
-- PWA 아이콘: `public/icon-192.png`, `public/icon-512.png`, `public/apple-icon.png`를 직접 준비해야 한다.
-- OG 이미지: `public/og-image.png` (1200×630px)를 직접 준비해야 한다.
+- PWA 아이콘: `public/icon-192.png`, `public/icon-512.png`, `public/apple-icon.png` 준비 완료.
+- OG 이미지: `public/og-image.png` (1200×630px) 준비 완료.

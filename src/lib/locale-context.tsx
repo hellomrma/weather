@@ -7,7 +7,7 @@
  * 하위 컴포넌트에서 useLocale()로 번역 객체와 로케일 정보를 사용한다.
  */
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useSyncExternalStore } from 'react';
 import {
   type Locale,
   type Translations,
@@ -24,23 +24,26 @@ interface LocaleContextValue {
   dateLocale: string;
   /** OWM API lang 파라미터 값 */
   owmLang: OWMLang;
+  /** 브라우저 로케일 감지 완료 여부. false인 동안 API 호출을 미뤄 ko → 실제 언어 중복 요청을 막는다. */
+  ready: boolean;
 }
+
+// navigator.language는 세션 중 바뀌지 않으므로 구독할 이벤트가 없다.
+const subscribeNoop = (): (() => void) => () => {};
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  // 초기값 'ko': SSR/hydration 불일치 방지 (navigator는 브라우저에서만 사용 가능)
-  const [locale, setLocale] = useState<Locale>('ko');
-
-  useEffect(() => {
-    setLocale(detectLocale());
-  }, []);
+  // 서버/hydration 렌더에서는 false('ko' 사용), 클라이언트에서는 true — hydration 불일치 방지
+  const ready = useSyncExternalStore(subscribeNoop, () => true, () => false);
+  const locale: Locale = ready ? detectLocale() : 'ko';
 
   const value: LocaleContextValue = {
     locale,
     t: getTranslations(locale),
     dateLocale: locale,
     owmLang: OWM_LANG[locale],
+    ready,
   };
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;

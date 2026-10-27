@@ -54,17 +54,26 @@ export function WeatherBackground({ condition = 'Clear', icon = '01d' }: Weather
     let rafId: number;
     let lightning = 0; // 번개 카운터
 
-    // 캔버스 크기 동기화
+    // 모션 감소 설정 시 정적 배경 한 프레임만 그린다
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // 캔버스 크기 동기화 — 레티나 대응을 위해 devicePixelRatio(최대 2) 배율로 그리고,
+    // 좌표계는 CSS 픽셀 기준을 유지한다
+    let width = 0;
+    let height = 0;
     const resize = () => {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width  = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width  = width * dpr;
+      canvas.height = height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
-    window.addEventListener('resize', resize);
 
     // ── 파티클 초기화 ────────────────────────────────────────────────────────
-    const W = () => canvas.width;
-    const H = () => canvas.height;
+    const W = () => width;
+    const H = () => height;
     const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
     // 비 / 소나기 / 뇌우
@@ -298,14 +307,21 @@ export function WeatherBackground({ condition = 'Clear', icon = '01d' }: Weather
         ctx.restore();
       }
 
-      rafId = requestAnimationFrame(draw);
+      if (!reduceMotion) rafId = requestAnimationFrame(draw);
     };
 
     draw();
 
+    // 모션 감소 모드에서는 루프가 없으므로 리사이즈 시 직접 다시 그린다
+    const onResize = () => {
+      resize();
+      if (reduceMotion) draw();
+    };
+    window.addEventListener('resize', onResize);
+
     return () => {
       cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', onResize);
     };
   }, [condition, isNight, c0, c1, c2]);
 

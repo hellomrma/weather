@@ -23,12 +23,13 @@
 ```typescript
 // src/hooks/useGeolocation.ts
 export type LocationPermission = 'prompt' | 'granted' | 'denied' | 'loading'
+export type GeolocationErrorCode = 'unsupported' | 'denied' | 'unavailable' | 'timeout' | 'unknown'
 
 export interface GeolocationState {
   lat: number         // 기본값: 37.5665 (서울)
   lon: number         // 기본값: 126.9780 (서울)
   loading: boolean
-  error: string | null
+  error: GeolocationErrorCode | null  // UI에서 t.geoErrors[code]로 번역
   permission: LocationPermission
 }
 ```
@@ -39,31 +40,48 @@ export interface GeolocationState {
 초기값: { loading: true, permission: 'loading', lat: 37.5665, lon: 126.9780 }
 
 getCurrentPosition 성공 → { loading: false, permission: 'granted', lat: 실제좌표, lon: 실제좌표 }
-PERMISSION_DENIED(code:1)  → { loading: false, permission: 'denied',  lat: 37.5665(서울), error: '...' }
-POSITION_UNAVAILABLE(code:2) → { loading: false, permission: 'prompt', lat: 37.5665(서울), error: '...' }
-TIMEOUT(code:3)            → { loading: false, permission: 'prompt',  lat: 37.5665(서울), error: '...' }
-geolocation 미지원         → { loading: false, permission: 'denied',  lat: 37.5665(서울), error: '...' }
+PERMISSION_DENIED(code:1)  → { loading: false, permission: 'denied',  lat: 37.5665(서울), error: 'denied' }
+POSITION_UNAVAILABLE(code:2) → { loading: false, permission: 'prompt', lat: 37.5665(서울), error: 'unavailable' }
+TIMEOUT(code:3)            → { loading: false, permission: 'prompt',  lat: 37.5665(서울), error: 'timeout' }
+geolocation 미지원         → { loading: false, permission: 'denied',  lat: 37.5665(서울), error: 'unsupported' }
 ```
 
 > `POSITION_UNAVAILABLE`과 `TIMEOUT`은 사용자가 권한을 거부한 것이 아니므로 `'prompt'`로 설정한다.
-> `LocationStatus` 컴포넌트는 `error` prop을 우선 표시하므로 에러 메시지는 올바르게 표시된다.
+> `LocationStatus` 컴포넌트는 `error` 코드를 현재 로케일로 번역하여 우선 표시한다.
 
 ### useWeather — 날씨 데이터 상태
 
 ```typescript
 // src/hooks/useWeather.ts
+export type WeatherErrorCode = 'weather' | 'forecast' | 'network'
+
 export interface WeatherState {
   weather: WeatherResponse | null
   forecast: ForecastResponse | null
   loading: boolean      // 필드명: loading (isLoading 아님)
-  error: string | null
+  error: WeatherErrorCode | null  // UI에서 t.weatherErrors[code]로 번역
+}
+
+// hook 반환 타입
+export interface UseWeatherResult extends WeatherState {
+  refetch: () => void   // 위치 재요청 없이 API만 재호출
 }
 ```
 
 **동작 방식**:
-- `lat`, `lon`이 `NaN` 또는 `Infinity`이면 fetch를 호출하지 않는다 (데모 모드 차단).
+- `lat`, `lon`이 `NaN` 또는 `Infinity`이면 fetch를 호출하지 않는다 (데모 모드 · 위치/로케일 확정 전 차단).
 - `/api/weather`와 `/api/forecast`를 `Promise.all`로 병렬 호출한다.
 - `cancelled` 플래그로 언마운트 후 stale 상태 업데이트를 방지한다.
+- 에러 시 이전 `weather`/`forecast`를 유지한다. 데이터가 있으면 화면에 "갱신 실패" 안내 + 재시도 버튼, 없으면 `ErrorView`를 표시한다.
+
+### useAirQuality — 대기질 상태
+
+```typescript
+// src/hooks/useAirQuality.ts
+function useAirQuality(lat: number, lon: number): AirQualityResponse | null
+```
+
+- 보조 정보이므로 실패 시 에러 상태 없이 `null`을 유지한다 (카드 미표시).
 
 ---
 
@@ -93,7 +111,10 @@ export const MOCK_FORECAST: ForecastResponse = {
     { date: '2026-04-08', tempMin: 10.8, tempMax: 16.4, description: '흐림',       icon: '04d', pop: 0.40 },
     { date: '2026-04-09', tempMin: 9.3,  tempMax: 17.6, description: '맑음',       icon: '01d', pop: 0.05 },
   ],
+  hourly: [ /* 8개 — { dt, hour, temp, description, icon, pop } */ ],
 }
+
+export const MOCK_AIR: AirQualityResponse = { aqi: 2, pm25: 18, pm10: 34 }
 ```
 
 **데모 모드 조건 분기** (`page.tsx`):
@@ -103,7 +124,8 @@ const isDemo = searchParams.get('demo') === 'true'
 
 const weather  = isDemo ? MOCK_WEATHER  : realWeatherState.weather
 const forecast = isDemo ? MOCK_FORECAST : realWeatherState.forecast
-const isLoading = isDemo ? false : (geoLoading || realWeatherState.loading)
+const air      = isDemo ? MOCK_AIR      : realAir
+const isLoading = isDemo ? false : (geoLoading || (realWeatherState.loading && !weather))
 ```
 
 ---

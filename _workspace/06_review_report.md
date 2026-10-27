@@ -14,6 +14,7 @@
 | 2026-04-05 | `WeatherBackground` 캔버스 애니메이션 추가 |
 | 2026-04-05 | 데모 모드 (`?demo=true`) 추가 |
 | 2026-04-05 | SEO / GEO / AEO 메타데이터, JSON-LD, PWA 추가 |
+| 2026-10-27 | 개선 리뷰 — FR-03~05 수정, REC-02~05 적용, 접근성/캔버스 개선, 시간별 예보·대기질 기능 추가 |
 
 ---
 
@@ -33,6 +34,24 @@
 - **영향**: 타임아웃/위치불가 오류 발생 시 "위치 권한이 거부되었습니다" 메시지 노출
 - **조치**: 해당 케이스의 `permission`을 `'denied'`에서 `'prompt'`로 수정.
 
+#### [FR-03] ✅ 예보 일별 집계가 UTC 기준 → 수정 완료 (2026-10-27)
+
+- **심각도**: P1 (데이터 정확성)
+- **영향**: `dt_txt`(UTC)로 날짜를 묶어 KST 기준 하루 경계가 9시간 어긋났고, "정오(12:00 UTC)" 대표 항목이 실제로는 KST 21시라 밤 아이콘(`n`)이 표시됐다.
+- **조치**: 집계를 `src/lib/forecast.ts`로 분리하고 `city.timezone` 기반 현지 날짜·현지 정오 최근접 항목으로 변경. `forecast.test.ts` 회귀 테스트 추가.
+
+#### [FR-04] ✅ 좌표별 캐시 키로 캐시 적중률 ≈ 0 → 수정 완료 (2026-10-27)
+
+- **심각도**: P1 (비용 / Rate Limit)
+- **영향**: GPS 원좌표가 그대로 `'use cache'` 키가 되어 사용자마다 OWM을 새로 호출.
+- **조치**: `src/lib/coords.ts` `parseCoords()`에서 소수 2자리(약 1km) 반올림. 3개 Route Handler의 중복 검증 코드도 공통화.
+
+#### [FR-05] ✅ 초기 렌더 시 API 중복 호출 → 수정 완료 (2026-10-27)
+
+- **심각도**: P2 (비용 / 깜빡임)
+- **영향**: 위치 확정 전 서울 기본 좌표로, 로케일 확정 전 `ko`로 먼저 호출한 뒤 재호출.
+- **조치**: `LocaleProvider`에 `ready` 추가(`useSyncExternalStore` — 기존 `set-state-in-effect` 린트 에러도 해소). 위치·로케일 확정 후에만 fetch.
+
 ---
 
 ### 권장 개선
@@ -47,31 +66,47 @@
 
 - **파일**: `src/hooks/useWeather.ts` 50~56행
 - 에러 발생 시 `weather: null, forecast: null`로 기존 데이터를 초기화한다. 이미 데이터가 로드된 상태에서 재시도 실패 시 빈 화면이 표시되는 UX 문제.
-- **조치 (미적용)**: `error` 상태에서 이전 데이터를 유지하도록 개선 검토.
+- **조치 (✅ 2026-10-27 적용)**: 에러 시 이전 데이터 유지. 데이터가 있으면 `StaleDataNotice`(갱신 실패 안내 + 재시도) 표시.
 
 #### [REC-03] 🟡 WeatherCard의 WeatherIcon에 priority 미적용
 
 - **파일**: `src/components/WeatherIcon.tsx`
 - LCP 후보 이미지(현재 날씨 아이콘, size=96)에 `priority={true}` 미적용.
-- **조치 (미적용)**: `WeatherCard`에서 `WeatherIcon` 사용 시 `priority={true}` 전달.
+- **조치 (✅ 2026-10-27 적용)**: `WeatherIcon`에 `priority` prop 추가, `WeatherCard`에서 전달.
 
 #### [REC-04] 🟡 page.tsx 재시도 로직이 전체 새로고침에 의존
 
 - **파일**: `src/app/page.tsx`
 - `handleRetry`가 `window.location.reload()`를 호출하여 위치 정보 재요청도 함께 발생.
-- **조치 (미적용)**: `useWeather` hook에 `refetch` 함수를 노출하여 API만 재요청하도록 개선.
+- **조치 (✅ 2026-10-27 적용)**: `useWeather`가 `refetch`를 반환하고 재시도 버튼이 이를 호출.
 
 #### [REC-05] 🟡 테스트 도구 미설치
 
 - **파일**: `package.json`
 - `vitest`, `@testing-library/react`, `@playwright/test` 등 미설치.
-- **조치 (미적용)**: 테스트 도구 설치 및 `vitest.config.ts`, `playwright.config.ts` 구성.
+- **조치 (✅ 2026-10-27 부분 적용)**: `vitest@4` + `vitest.config.ts` + `npm test` 구성, 순수 함수 단위 테스트 9건. 컴포넌트/E2E(Testing Library, Playwright)는 미적용.
+- 참고: vitest 5는 `@types/node>=22`를 요구하여 4.x 사용. npm 10.9의 arborist 버그(`edgesOut`)로 `--legacy-peer-deps`로 설치함.
 
 #### [REC-06] 🟡 PWA 아이콘 파일 미생성
 
 - **파일**: `public/`
 - `manifest.json`에 정의된 `icon-192.png`, `icon-512.png`, `apple-icon.png`, `og-image.png` 파일이 없다.
-- **조치 (미적용)**: 아이콘 파일 직접 생성 필요 (디자인 툴 또는 favicon 생성기 활용).
+- **조치 (✅ 2026-10-27 적용)**: 해+구름 심볼로 `icon-192.png`, `icon-512.png`, `apple-icon.png`(180), `og-image.png`(1200×630) 생성. maskable 안전영역(반지름 40%) 내 배치.
+
+#### [REC-07] ✅ 에러 메시지 하드코딩(한국어) → 적용 (2026-10-27)
+
+- hook은 에러 코드(`GeolocationErrorCode`, `WeatherErrorCode`)만 반환하고 UI에서 `t.geoErrors` / `t.weatherErrors`로 번역 (5개 언어).
+
+#### [REC-08] ✅ 접근성 · 캔버스 → 적용 (2026-10-27)
+
+- `viewport.maximumScale: 1` 제거 (확대 허용, WCAG 1.4.4).
+- `WeatherBackground`: `devicePixelRatio`(최대 2) 대응, `prefers-reduced-motion` 시 정적 프레임.
+- 백그라운드 탭 일시정지는 브라우저가 rAF를 자동 중단하므로 별도 구현하지 않음.
+
+#### [FEAT] ✅ 시간별 예보 · 대기질 추가 (2026-10-27)
+
+- `HourlyForecast`: `/api/forecast` 응답의 `hourly`(24시간) 표시 — 추가 OWM 호출 없음.
+- `AirQualityCard` + `/api/air` + `useAirQuality`: AQI·PM2.5·PM10. OWM AQI는 유럽 CAQI 기준으로 국내 환경부 등급과 다름.
 
 ---
 
@@ -144,9 +179,9 @@ API 키 미발급 상태에서도 UI 전체를 확인 가능. 목업 데이터 �
 | 보안 | ✅ | API 키 격리, 입력 검증, 이미지 도메인 제한 |
 | 접근성 | ✅ | ARIA 체계적 적용 |
 | SEO / GEO / AEO | ✅ | 메타데이터 + JSON-LD + PWA 완비 |
-| 이미지 최적화 | ⚠️ | next/image 사용 ✅, LCP 아이콘 priority 미적용 |
-| PWA 아이콘 파일 | ❌ | 아이콘 이미지 파일 직접 생성 필요 |
-| 테스트 도구 설치 | ❌ | vitest, playwright 미설치 |
+| 이미지 최적화 | ✅ | next/image + LCP 아이콘 priority |
+| PWA 아이콘 파일 | ✅ | 아이콘 3종 + OG 이미지 생성 |
+| 테스트 도구 설치 | ⚠️ | vitest 단위 테스트 ✅, 컴포넌트/E2E 미설치 |
 
 ---
 
@@ -158,6 +193,6 @@ API 키 미발급 상태에서도 UI 전체를 확인 가능. 목업 데이터 �
 
 ## 배포 전 완료 필요
 
-- [ ] `public/` 아이콘 파일 생성 (icon-192.png, icon-512.png, apple-icon.png, og-image.png)
+- [x] `public/` 아이콘 파일 생성 (icon-192.png, icon-512.png, apple-icon.png, og-image.png)
 - [ ] Vercel 환경변수 등록 (OPENWEATHERMAP_API_KEY, NEXT_PUBLIC_BASE_URL)
 - [ ] GitHub Secrets 등록 (VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID)

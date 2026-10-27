@@ -5,6 +5,8 @@
  * 브라우저 navigator.language 기반 자동 감지.
  */
 
+import type { AQILevel, GeolocationErrorCode, WeatherErrorCode } from '@/lib/types';
+
 export const SUPPORTED_LOCALES = ['ko', 'en', 'ja', 'zh-CN', 'es'] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
@@ -54,6 +56,14 @@ export interface Translations {
   lowTempAriaLabel: (temp: number) => string;
   precipAriaLabel: (pct: number) => string;
   currentTimeAriaLabel: (time: string) => string;
+  geoErrors: Record<GeolocationErrorCode, string>;
+  weatherErrors: Record<WeatherErrorCode, string>;
+  staleDataNotice: string;
+  hourlyTitle: string;
+  airQualityTitle: string;
+  aqiLevels: Record<AQILevel, string>;
+  pm25: string;
+  pm10: string;
 }
 
 const translations: Record<Locale, Translations> = {
@@ -76,6 +86,24 @@ const translations: Record<Locale, Translations> = {
     lowTempAriaLabel: (temp) => `최저 기온 ${temp}도`,
     precipAriaLabel: (pct) => `강수 확률 ${pct}%`,
     currentTimeAriaLabel: (time) => `현재 시각 ${time}`,
+    geoErrors: {
+      unsupported: '이 브라우저는 위치 서비스를 지원하지 않습니다.',
+      denied: '위치 권한이 거부되었습니다.',
+      unavailable: '위치 정보를 가져올 수 없습니다.',
+      timeout: '위치 요청 시간이 초과되었습니다.',
+      unknown: '위치를 가져오는 중 오류가 발생했습니다.',
+    },
+    weatherErrors: {
+      weather: '날씨 데이터를 가져오지 못했습니다.',
+      forecast: '예보 데이터를 가져오지 못했습니다.',
+      network: '네트워크 오류가 발생했습니다. 연결을 확인해주세요.',
+    },
+    staleDataNotice: '최신 정보를 불러오지 못해 이전 데이터를 표시합니다.',
+    hourlyTitle: '시간별 예보',
+    airQualityTitle: '대기질',
+    aqiLevels: { 1: '좋음', 2: '양호', 3: '보통', 4: '나쁨', 5: '매우 나쁨' },
+    pm25: '초미세먼지',
+    pm10: '미세먼지',
   },
 
   en: {
@@ -97,6 +125,24 @@ const translations: Record<Locale, Translations> = {
     lowTempAriaLabel: (temp) => `Low ${temp}°`,
     precipAriaLabel: (pct) => `${pct}% chance of rain`,
     currentTimeAriaLabel: (time) => `Current time ${time}`,
+    geoErrors: {
+      unsupported: 'This browser does not support location services.',
+      denied: 'Location permission denied.',
+      unavailable: 'Unable to determine your location.',
+      timeout: 'Location request timed out.',
+      unknown: 'An error occurred while getting your location.',
+    },
+    weatherErrors: {
+      weather: 'Failed to load weather data.',
+      forecast: 'Failed to load forecast data.',
+      network: 'A network error occurred. Please check your connection.',
+    },
+    staleDataNotice: 'Could not refresh — showing previous data.',
+    hourlyTitle: 'Hourly Forecast',
+    airQualityTitle: 'Air Quality',
+    aqiLevels: { 1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor' },
+    pm25: 'PM2.5',
+    pm10: 'PM10',
   },
 
   ja: {
@@ -118,6 +164,24 @@ const translations: Record<Locale, Translations> = {
     lowTempAriaLabel: (temp) => `最低気温 ${temp}度`,
     precipAriaLabel: (pct) => `降水確率 ${pct}%`,
     currentTimeAriaLabel: (time) => `現在時刻 ${time}`,
+    geoErrors: {
+      unsupported: 'このブラウザは位置情報サービスに対応していません。',
+      denied: '位置情報の権限が拒否されました。',
+      unavailable: '位置情報を取得できません。',
+      timeout: '位置情報の取得がタイムアウトしました。',
+      unknown: '位置情報の取得中にエラーが発生しました。',
+    },
+    weatherErrors: {
+      weather: '天気データを取得できませんでした。',
+      forecast: '予報データを取得できませんでした。',
+      network: 'ネットワークエラーが発生しました。接続を確認してください。',
+    },
+    staleDataNotice: '最新情報を取得できなかったため、以前のデータを表示しています。',
+    hourlyTitle: '時間別予報',
+    airQualityTitle: '大気質',
+    aqiLevels: { 1: '良い', 2: 'やや良い', 3: '普通', 4: '悪い', 5: '非常に悪い' },
+    pm25: 'PM2.5',
+    pm10: 'PM10',
   },
 
   'zh-CN': {
@@ -139,6 +203,24 @@ const translations: Record<Locale, Translations> = {
     lowTempAriaLabel: (temp) => `最低温度 ${temp}度`,
     precipAriaLabel: (pct) => `降水概率 ${pct}%`,
     currentTimeAriaLabel: (time) => `当前时间 ${time}`,
+    geoErrors: {
+      unsupported: '此浏览器不支持位置服务。',
+      denied: '位置权限被拒绝。',
+      unavailable: '无法获取位置信息。',
+      timeout: '位置请求超时。',
+      unknown: '获取位置时发生错误。',
+    },
+    weatherErrors: {
+      weather: '无法获取天气数据。',
+      forecast: '无法获取预报数据。',
+      network: '发生网络错误，请检查网络连接。',
+    },
+    staleDataNotice: '无法获取最新信息，正在显示之前的数据。',
+    hourlyTitle: '逐时预报',
+    airQualityTitle: '空气质量',
+    aqiLevels: { 1: '优', 2: '良', 3: '中等', 4: '差', 5: '很差' },
+    pm25: 'PM2.5',
+    pm10: 'PM10',
   },
 
   es: {
@@ -161,6 +243,24 @@ const translations: Record<Locale, Translations> = {
     lowTempAriaLabel: (temp) => `Mínima ${temp}°`,
     precipAriaLabel: (pct) => `${pct}% de probabilidad de lluvia`,
     currentTimeAriaLabel: (time) => `Hora actual ${time}`,
+    geoErrors: {
+      unsupported: 'Este navegador no admite servicios de ubicación.',
+      denied: 'Permiso de ubicación denegado.',
+      unavailable: 'No se pudo determinar tu ubicación.',
+      timeout: 'Se agotó el tiempo de la solicitud de ubicación.',
+      unknown: 'Se produjo un error al obtener tu ubicación.',
+    },
+    weatherErrors: {
+      weather: 'No se pudieron cargar los datos del tiempo.',
+      forecast: 'No se pudieron cargar los datos del pronóstico.',
+      network: 'Se produjo un error de red. Comprueba tu conexión.',
+    },
+    staleDataNotice: 'No se pudo actualizar; se muestran los datos anteriores.',
+    hourlyTitle: 'Pronóstico por horas',
+    airQualityTitle: 'Calidad del aire',
+    aqiLevels: { 1: 'Buena', 2: 'Aceptable', 3: 'Moderada', 4: 'Mala', 5: 'Muy mala' },
+    pm25: 'PM2.5',
+    pm10: 'PM10',
   },
 };
 

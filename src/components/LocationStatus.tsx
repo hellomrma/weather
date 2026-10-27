@@ -1,10 +1,10 @@
 import { useLocale } from '@/lib/locale-context';
-import type { LocationPermission } from '@/lib/types';
+import type { GeolocationErrorCode, LocationPermission } from '@/lib/types';
 
 interface LocationStatusProps {
   permission: LocationPermission;
   city?: string;
-  error?: string | null;
+  error?: GeolocationErrorCode | null;
 }
 
 export function LocationStatus({ permission, city, error }: LocationStatusProps) {
@@ -50,7 +50,7 @@ export function LocationStatus({ permission, city, error }: LocationStatusProps)
               clipRule="evenodd"
             />
           </svg>
-          <span>{error ?? t.locationDenied}</span>
+          <span>{error ? t.geoErrors[error] : t.locationDenied}</span>
         </div>
         <p className="text-white/50 text-xs pl-6">{t.locationFallback}</p>
       </div>

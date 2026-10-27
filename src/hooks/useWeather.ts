@@ -1,15 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import type { WeatherState, WeatherResponse, ForecastResponse } from '@/lib/types';
+import { useState, useEffect, useCallback } from 'react';
+import type { WeatherState, WeatherErrorCode, WeatherResponse, ForecastResponse } from '@/lib/types';
 
-export function useWeather(lat: number, lon: number, lang: string = 'kr'): WeatherState {
+export interface UseWeatherResult extends WeatherState {
+  /** 위치 재요청 없이 API만 다시 호출한다 */
+  refetch: () => void;
+}
+
+class WeatherFetchError extends Error {
+  constructor(readonly code: WeatherErrorCode) {
+    super(code);
+  }
+}
+
+export function useWeather(lat: number, lon: number, lang: string = 'kr'): UseWeatherResult {
   const [state, setState] = useState<WeatherState>({
     weather: null,
     forecast: null,
     loading: true,
     error: null,
   });
+  const [reloadKey, setReloadKey] = useState(0);
+  const refetch = useCallback(() => setReloadKey((k) => k + 1), []);
 
   useEffect(() => {
     // lat, lon이 유효한 숫자인지 확인
@@ -29,14 +42,8 @@ export function useWeather(lat: number, lon: number, lang: string = 'kr'): Weath
           fetch(`/api/forecast?lat=${lat}&lon=${lon}&lang=${lang}`),
         ]);
 
-        if (!weatherRes.ok) {
-          const body = await weatherRes.json().catch(() => ({}));
-          throw new Error(body.error ?? '날씨 데이터를 가져오지 못했습니다.');
-        }
-        if (!forecastRes.ok) {
-          const body = await forecastRes.json().catch(() => ({}));
-          throw new Error(body.error ?? '예보 데이터를 가져오지 못했습니다.');
-        }
+        if (!weatherRes.ok) throw new WeatherFetchError('weather');
+        if (!forecastRes.ok) throw new WeatherFetchError('forecast');
 
         const [weather, forecast]: [WeatherResponse, ForecastResponse] = await Promise.all([
           weatherRes.json(),
@@ -48,12 +55,12 @@ export function useWeather(lat: number, lon: number, lang: string = 'kr'): Weath
         }
       } catch (err) {
         if (!cancelled) {
-          setState({
-            weather: null,
-            forecast: null,
+          // 이전 데이터는 유지한다 — 재시도 실패 시 빈 화면 대신 마지막 데이터를 보여준다
+          setState((prev) => ({
+            ...prev,
             loading: false,
-            error: err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.',
-          });
+            error: err instanceof WeatherFetchError ? err.code : 'network',
+          }));
         }
       }
     };
@@ -63,7 +70,7 @@ export function useWeather(lat: number, lon: number, lang: string = 'kr'): Weath
     return () => {
       cancelled = true;
     };
-  }, [lat, lon, lang]);
+  }, [lat, lon, lang, reloadKey]);
 
-  return state;
+  return { ...state, refetch };
 }

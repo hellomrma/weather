@@ -4,10 +4,13 @@ import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useWeather } from '@/hooks/useWeather';
+import { useAirQuality } from '@/hooks/useAirQuality';
 import { WeatherCard } from '@/components/WeatherCard';
 import { ForecastList } from '@/components/ForecastList';
+import { HourlyForecast } from '@/components/HourlyForecast';
+import { AirQualityCard } from '@/components/AirQualityCard';
 import { LocationStatus } from '@/components/LocationStatus';
-import { MOCK_WEATHER, MOCK_FORECAST } from '@/lib/mock-data';
+import { MOCK_WEATHER, MOCK_FORECAST, MOCK_AIR } from '@/lib/mock-data';
 import { WeatherBackground } from '@/components/WeatherBackground';
 import { LocaleProvider, useLocale } from '@/lib/locale-context';
 
@@ -97,23 +100,48 @@ function ErrorView({ message, onRetry }: ErrorViewProps) {
   );
 }
 
+// 이전 데이터를 표시 중일 때의 갱신 실패 안내
+function StaleDataNotice({ onRetry }: { onRetry: () => void }) {
+  const { t } = useLocale();
+  return (
+    <div
+      className="flex items-center justify-between gap-3 rounded-2xl bg-amber-400/15 border border-amber-200/30 px-4 py-2 text-amber-100 text-xs"
+      role="alert"
+      data-testid="stale-data-notice"
+    >
+      <span>{t.staleDataNotice}</span>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="shrink-0 px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 text-white font-medium transition-colors focus-visible:outline-2 focus-visible:outline-white"
+      >
+        {t.retry}
+      </button>
+    </div>
+  );
+}
+
 function HomePageContent() {
   const searchParams = useSearchParams();
   const isDemo = searchParams.get('demo') === 'true';
   const { lat, lon, loading: geoLoading, error: geoError, permission } = useGeolocation();
-  const { t, dateLocale, owmLang } = useLocale();
-  const realWeatherState = useWeather(isDemo ? NaN : lat, isDemo ? NaN : lon, owmLang);
+  const { t, dateLocale, owmLang, ready: localeReady } = useLocale();
+  // 위치·로케일이 확정되기 전에는 호출하지 않는다 (서울 기본값/ko로 먼저 요청 후 재요청하는 중복 방지)
+  const shouldFetch = !isDemo && !geoLoading && localeReady;
+  const realWeatherState = useWeather(shouldFetch ? lat : NaN, shouldFetch ? lon : NaN, owmLang);
+  const realAir = useAirQuality(shouldFetch ? lat : NaN, shouldFetch ? lon : NaN);
   const currentTime = useCurrentTime(dateLocale);
 
   const weather = isDemo ? MOCK_WEATHER : realWeatherState.weather;
   const forecast = isDemo ? MOCK_FORECAST : realWeatherState.forecast;
+  const air = isDemo ? MOCK_AIR : realAir;
   const weatherError = isDemo ? null : realWeatherState.error;
 
-  // 전체 로딩: 위치 로딩 또는 날씨 데이터 로딩 중
-  const isLoading = isDemo ? false : (geoLoading || realWeatherState.loading);
+  // 전체 로딩: 위치 로딩 또는 (표시할 데이터가 없는 상태에서) 날씨 데이터 로딩 중
+  const isLoading = isDemo ? false : (geoLoading || (realWeatherState.loading && !weather));
 
-  // 재시도: 페이지 새로고침
-  const handleRetry = () => window.location.reload();
+  // 재시도: 위치 재요청 없이 API만 다시 호출
+  const handleRetry = realWeatherState.refetch;
 
   return (
     <div className="relative min-h-screen">
@@ -157,13 +185,16 @@ function HomePageContent() {
         <main className="w-full max-w-md flex flex-col gap-4 animate-fade-in">
           {isLoading ? (
             <WeatherSkeleton />
-          ) : weatherError ? (
-            <ErrorView message={weatherError} onRetry={handleRetry} />
           ) : weather && forecast ? (
             <>
+              {weatherError && <StaleDataNotice onRetry={handleRetry} />}
               <WeatherCard weather={weather} />
+              <HourlyForecast hourly={forecast.hourly} />
+              {air && <AirQualityCard air={air} />}
               <ForecastList daily={forecast.daily} />
             </>
+          ) : weatherError ? (
+            <ErrorView message={t.weatherErrors[weatherError]} onRetry={handleRetry} />
           ) : null}
         </main>
       </div>

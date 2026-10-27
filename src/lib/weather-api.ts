@@ -11,11 +11,12 @@ import { cacheLife } from 'next/cache'
 import type {
   WeatherResponse,
   ForecastResponse,
-  ForecastDay,
+  AirQualityResponse,
   OWMCurrentWeatherResponse,
   OWMForecastResponse,
-  OWMForecastItem,
+  OWMAirPollutionResponse,
 } from '@/lib/types'
+import { aggregateForecast, buildHourly } from '@/lib/forecast'
 
 const OWM_BASE_URL = 'https://api.openweathermap.org/data/2.5'
 
@@ -145,43 +146,57 @@ export async function fetchForecast(
   }
 
   const raw: OWMForecastResponse = await res.json()
-  return { daily: aggregateForecast(raw.list) }
+  return {
+    daily: aggregateForecast(raw.list, raw.city.timezone),
+    hourly: buildHourly(raw.list, raw.city.timezone),
+  }
 }
 
+// =============================================================================
+// 대기질 조회
+// =============================================================================
+
 /**
- * OWM 3시간 간격 예보 목록을 날짜별로 집계하여 일별 ForecastDay 배열로 변환한다.
+ * OpenWeatherMap Air Pollution API를 호출하여 현재 대기질을 반환한다.
  *
- * 집계 규칙 (API 명세 준수):
- * - 날짜 기준: dt_txt의 "YYYY-MM-DD" 부분으로 그룹화
- * - tempMax: 그룹 내 main.temp_max 최댓값
- * - tempMin: 그룹 내 main.temp_min 최솟값
- * - description / icon: 해당 날짜 정오(12:00:00 UTC) 항목 우선, 없으면 첫 번째 항목
- * - pop: 그룹 내 최댓값
- * - 최대 5일 반환
+ * @param lat 위도 (-90 ~ 90)
+ * @param lon 경도 (-180 ~ 180)
  */
-function aggregateForecast(list: OWMForecastItem[]): ForecastDay[] {
-  // 날짜별 그룹화 — dt_txt 형식: "YYYY-MM-DD HH:MM:SS"
-  const grouped = list.reduce<Record<string, OWMForecastItem[]>>((acc, item) => {
-    const date = item.dt_txt.split(' ')[0] // "YYYY-MM-DD"
-    if (!acc[date]) acc[date] = []
-    acc[date].push(item)
-    return acc
-  }, {})
+export async function fetchAirQuality(
+  lat: number,
+  lon: number
+): Promise<AirQualityResponse> {
+  'use cache'
+  // 대기질: 관측값이 1시간 단위로 갱신되므로 30분마다 재검증
+  cacheLife({ stale: 600, revalidate: 1800, expire: 3600 })
 
-  return Object.entries(grouped)
-    .slice(0, 5) // 최대 5일
-    .map(([date, items]): ForecastDay => {
-      // 정오(12:00:00 UTC) 데이터 우선, 없으면 첫 번째 항목
-      const noonItem =
-        items.find((i) => i.dt_txt.includes('12:00:00')) ?? items[0]
+  const apiKey = getApiKey()
+  const url = `${OWM_BASE_URL}/air_pollution?lat=${lat}&lon=${lon}&appid=${apiKey}`
 
-      return {
-        date,
-        tempMin: Math.round(Math.min(...items.map((i) => i.main.temp_min)) * 10) / 10,
-        tempMax: Math.round(Math.max(...items.map((i) => i.main.temp_max)) * 10) / 10,
-        description: noonItem.weather[0].description,
-        icon: noonItem.weather[0].icon,
-        pop: Math.max(...items.map((i) => i.pop)),
-      }
-    })
+  let res: Response
+  try {
+    res = await fetch(url)
+  } catch (err) {
+    console.error('[weather-api] Network error calling OWM /air_pollution:', err)
+    throw new Error('Failed to fetch air quality data: network error')
+  }
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    console.error(
+      `[weather-api] OWM /air_pollution responded ${res.status}: ${body}`
+    )
+    throw new Error(`Failed to fetch air quality data: OWM returned ${res.status}`)
+  }
+
+  const raw: OWMAirPollutionResponse = await res.json()
+  const entry = raw.list[0]
+  if (!entry) {
+    throw new Error('Failed to fetch air quality data: empty response')
+  }
+  return {
+    aqi: entry.main.aqi,
+    pm25: Math.round(entry.components.pm2_5),
+    pm10: Math.round(entry.components.pm10),
+  }
 }

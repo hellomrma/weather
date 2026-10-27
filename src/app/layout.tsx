@@ -20,7 +20,6 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://weather-now.vercel
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#38bdf8' },
     { media: '(prefers-color-scheme: dark)',  color: '#0f172a' },

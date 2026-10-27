@@ -9,48 +9,21 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { fetchForecast } from '@/lib/weather-api'
 import { resolveOWMLang } from '@/lib/i18n'
+import { parseCoords } from '@/lib/coords'
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
-  const lat = url.searchParams.get('lat')
-  const lon = url.searchParams.get('lon')
   const lang = resolveOWMLang(url.searchParams.get('lang'))
 
-  // 1. 파라미터 존재 검증
-  if (!lat || !lon) {
-    return NextResponse.json(
-      { error: 'lat and lon query parameters are required' },
-      { status: 400 }
-    )
-  }
-
-  // 2. 숫자 형식 검증
-  const latNum = parseFloat(lat)
-  const lonNum = parseFloat(lon)
-  if (isNaN(latNum) || isNaN(lonNum)) {
-    return NextResponse.json(
-      { error: 'lat and lon must be valid numbers' },
-      { status: 400 }
-    )
-  }
-
-  // 3. 범위 검증 — 위도: -90 ~ 90, 경도: -180 ~ 180
-  if (latNum < -90 || latNum > 90) {
-    return NextResponse.json(
-      { error: 'lat must be between -90 and 90' },
-      { status: 400 }
-    )
-  }
-  if (lonNum < -180 || lonNum > 180) {
-    return NextResponse.json(
-      { error: 'lon must be between -180 and 180' },
-      { status: 400 }
-    )
+  // 1~3. 파라미터 존재 · 숫자 형식 · 범위 검증 (+ 캐시 적중을 위한 좌표 반올림)
+  const parsed = parseCoords(url.searchParams)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
   }
 
   // 4. OpenWeatherMap API 호출
   try {
-    const data = await fetchForecast(latNum, lonNum, lang)
+    const data = await fetchForecast(parsed.coords.lat, parsed.coords.lon, lang)
     return NextResponse.json(data)
   } catch (err) {
     console.error('[GET /api/forecast] Failed to fetch forecast data:', err)
